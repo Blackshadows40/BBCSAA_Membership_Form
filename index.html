@@ -2,7 +2,7 @@
 <html lang="bn">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Bagerhat Bohumukhi Collegiate School Alumni Association — Membership Registration</title>
 <meta name="description" content="Official membership registration form for the Bagerhat Bohumukhi Collegiate School Alumni Association (BBCS-AA).">
 
@@ -54,7 +54,13 @@ body {
   font-family: var(--font-bn-body);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
+
+/* Offset anchored scroll targets so the sticky header never covers a
+   section's heading when jumped to via the quick-nav or completion ring. */
+.form-section { scroll-margin-top: 96px; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -184,12 +190,83 @@ body {
 .header-notice a { color: var(--gold-soft); }
 
 /* ---------------------------------------------------------
+   DESKTOP QUICK-NAV RAIL
+   --------------------------------------------------------- */
+.quick-nav {
+  display: none;
+}
+
+@media (min-width: 1180px) {
+  .quick-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: fixed;
+    left: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 35;
+  }
+
+  .quick-nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ink-soft);
+  }
+
+  .quick-nav .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1.5px solid var(--line);
+    flex: none;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .quick-nav .quick-nav-label {
+    font-size: 0.74rem;
+    font-family: var(--font-en-body);
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    background: var(--paper);
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+  }
+
+  .quick-nav a:hover .quick-nav-label,
+  .quick-nav a.is-active .quick-nav-label {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .quick-nav a.is-active .dot {
+    background: var(--gold);
+    border-color: var(--gold);
+    transform: scale(1.3);
+  }
+
+  .quick-nav a:hover .dot { border-color: var(--navy-soft); }
+}
+
+/* ---------------------------------------------------------
    PAGE / LAYOUT
    --------------------------------------------------------- */
 .page {
   max-width: var(--max-w);
   margin: 0 auto;
   padding: 28px 18px 60px;
+}
+
+@media (min-width: 900px) {
+  .page { padding: 44px 24px 90px; }
+  .form-section { padding: 34px 40px 40px; }
+  .field-row { gap: 0 22px; }
 }
 
 .intro {
@@ -315,8 +392,8 @@ input[type="date"],
 select,
 textarea {
   width: 100%;
-  padding: 11px 12px;
-  font-size: 0.96rem;
+  padding: 12px 12px;
+  font-size: 16px;
   font-family: var(--font-bn-body);
   color: var(--ink);
   background: #fff;
@@ -743,8 +820,8 @@ input.invalid, select.invalid, textarea.invalid {
    --------------------------------------------------------- */
 .completion-ring {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
   width: 58px;
   height: 58px;
   border: none;
@@ -878,6 +955,18 @@ input.invalid, select.invalid, textarea.invalid {
 <!-- Slim scroll-progress indicator -->
 <div class="scroll-progress" aria-hidden="true"><div class="scroll-progress-bar" id="scrollProgressBar"></div></div>
 
+<!-- Desktop-only quick navigation rail (hidden on mobile) -->
+<nav class="quick-nav" aria-label="ফর্ম সেকশন নেভিগেশন">
+  <a href="#section-declaration" data-section="section-declaration" title="ঘোষণা"><span class="dot"></span><span class="quick-nav-label">ঘোষণা</span></a>
+  <a href="#section-personal" data-section="section-personal" title="ব্যক্তিগত তথ্য"><span class="dot"></span><span class="quick-nav-label">ব্যক্তিগত তথ্য</span></a>
+  <a href="#section-academic" data-section="section-academic" title="শিক্ষাগত তথ্য"><span class="dot"></span><span class="quick-nav-label">শিক্ষাগত তথ্য</span></a>
+  <a href="#section-contact" data-section="section-contact" title="যোগাযোগের তথ্য"><span class="dot"></span><span class="quick-nav-label">যোগাযোগ</span></a>
+  <a href="#section-media" data-section="section-media" title="ছবি আপলোড"><span class="dot"></span><span class="quick-nav-label">ছবি আপলোড</span></a>
+  <a href="#section-tier" data-section="section-tier" title="সদস্যপদ"><span class="dot"></span><span class="quick-nav-label">সদস্যপদ</span></a>
+  <a href="#section-payment" data-section="section-payment" title="পেমেন্ট"><span class="dot"></span><span class="quick-nav-label">পেমেন্ট</span></a>
+  <a href="#section-submit" data-section="section-submit" title="জমা দিন"><span class="dot"></span><span class="quick-nav-label">জমা দিন</span></a>
+</nav>
+
 <!-- ===================== HEADER ===================== -->
 <header class="site-header" id="siteHeader">
   <div class="header-inner">
@@ -903,7 +992,7 @@ input.invalid, select.invalid, textarea.invalid {
   <form id="membership-form" novalidate>
 
     <!-- Hidden declaration echo, used for the top statement -->
-    <section class="form-section" aria-labelledby="s0-title">
+    <section class="form-section" id="section-declaration" aria-labelledby="s0-title">
       <div class="section-head">
         <span class="section-num">Ⅰ</span>
         <h2 id="s0-title">ঘোষণা</h2>
@@ -915,7 +1004,7 @@ input.invalid, select.invalid, textarea.invalid {
     </section>
 
     <!-- ===================== 1. PERSONAL DETAILS ===================== -->
-    <section class="form-section" aria-labelledby="s1-title">
+    <section class="form-section" id="section-personal" aria-labelledby="s1-title">
       <div class="section-head">
         <span class="section-num">১</span>
         <h2 id="s1-title">ব্যক্তিগত তথ্য <span class="section-head-en">Personal Details</span></h2>
@@ -969,7 +1058,7 @@ input.invalid, select.invalid, textarea.invalid {
     </section>
 
     <!-- ===================== 2. ACADEMIC HISTORY ===================== -->
-    <section class="form-section" aria-labelledby="s2-title">
+    <section class="form-section" id="section-academic" aria-labelledby="s2-title">
       <div class="section-head">
         <span class="section-num">২</span>
         <h2 id="s2-title">শিক্ষাগত তথ্য <span class="section-head-en">Academic History</span></h2>
@@ -990,7 +1079,7 @@ input.invalid, select.invalid, textarea.invalid {
     </section>
 
     <!-- ===================== 3. PROFESSIONAL & CONTACT ===================== -->
-    <section class="form-section" aria-labelledby="s3-title">
+    <section class="form-section" id="section-contact" aria-labelledby="s3-title">
       <div class="section-head">
         <span class="section-num">৩</span>
         <h2 id="s3-title">পেশাগত ও যোগাযোগের তথ্য <span class="section-head-en">Professional &amp; Contact Details</span></h2>
@@ -1033,7 +1122,7 @@ input.invalid, select.invalid, textarea.invalid {
     </section>
 
     <!-- ===================== 4. VERIFICATION & MEDIA ===================== -->
-    <section class="form-section" aria-labelledby="s4-title">
+    <section class="form-section" id="section-media" aria-labelledby="s4-title">
       <div class="section-head">
         <span class="section-num">৪</span>
         <h2 id="s4-title">যাচাইকরণ ও ছবি আপলোড <span class="section-head-en">Verification &amp; Media</span></h2>
@@ -1083,7 +1172,7 @@ input.invalid, select.invalid, textarea.invalid {
     </section>
 
     <!-- ===================== 5. MEMBERSHIP TIER ===================== -->
-    <section class="form-section" aria-labelledby="s5-title">
+    <section class="form-section" id="section-tier" aria-labelledby="s5-title">
       <div class="section-head">
         <span class="section-num">৫</span>
         <h2 id="s5-title">সদস্যপদের ধরন <span class="section-head-en">Membership Tier</span></h2>
@@ -1125,7 +1214,7 @@ input.invalid, select.invalid, textarea.invalid {
     </section>
 
     <!-- ===================== 6. PAYMENT ===================== -->
-    <section class="form-section" aria-labelledby="s6-title">
+    <section class="form-section" id="section-payment" aria-labelledby="s6-title">
       <div class="section-head">
         <span class="section-num">৬</span>
         <h2 id="s6-title">পেমেন্টের তথ্য <span class="section-head-en">Payment Details</span></h2>
@@ -1179,7 +1268,7 @@ input.invalid, select.invalid, textarea.invalid {
     </section>
 
     <!-- ===================== 7. DECLARATION & SUBMIT ===================== -->
-    <section class="form-section form-section-final" aria-labelledby="s7-title">
+    <section class="form-section form-section-final" id="section-submit" aria-labelledby="s7-title">
       <div class="section-head">
         <span class="section-num">৭</span>
         <h2 id="s7-title">নিশ্চিতকরণ <span class="section-head-en">Declaration</span></h2>
@@ -1255,6 +1344,27 @@ function onScroll() {
 }
 window.addEventListener("scroll", onScroll, { passive: true });
 onScroll();
+
+/* ---------------------------------------------------------
+   Desktop quick-nav scrollspy
+   --------------------------------------------------------- */
+const quickNavLinks = document.querySelectorAll(".quick-nav a");
+if (quickNavLinks.length && "IntersectionObserver" in window) {
+  const navObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          quickNavLinks.forEach((link) => {
+            link.classList.toggle("is-active", link.dataset.section === id);
+          });
+        }
+      });
+    },
+    { rootMargin: "-45% 0px -50% 0px", threshold: 0 }
+  );
+  document.querySelectorAll(".form-section").forEach((section) => navObserver.observe(section));
+}
 
 /* ---------------------------------------------------------
    Reveal form sections as they scroll into view
@@ -1664,7 +1774,17 @@ form.addEventListener("submit", async (e) => {
       donorField.hidden = true;
       paymentOtherText.disabled = true;
       updateCompletion();
-      showModal("success", "আবেদন সফলভাবে জমা হয়েছে!", "আপনার সদস্যপদের আবেদন গ্রহণ করা হয়েছে। যাচাইয়ের পর যোগাযোগ করা হবে।");
+      const emailNote = result.email === "sent"
+        ? " আপনার ইমেইলে একটি PDF কপি পাঠানো হয়েছে, দয়া করে চেক করুন (স্প্যাম ফোল্ডারও দেখুন)।"
+        : "";
+      const regIdNote = result.registrationId
+        ? ` আপনার রেজিস্ট্রেশন আইডি: ${result.registrationId}।`
+        : "";
+      showModal(
+        "success",
+        "আবেদন সফলভাবে জমা হয়েছে!",
+        "আপনার সদস্যপদের আবেদন গ্রহণ করা হয়েছে। যাচাইয়ের পর যোগাযোগ করা হবে।" + regIdNote + emailNote
+      );
     } else {
       throw new Error(result.message || "Unknown server error");
     }
