@@ -35,6 +35,7 @@ const FOLDER_NAMES = {
 
 const SHEET_HEADERS = [
   "Timestamp",
+  "Registration ID",
   "Name (Bangla)",
   "Name (English)",
   "Father's Name",
@@ -68,13 +69,19 @@ const EMAIL_SENDER_NAME = "Bagerhat Bohumukhi Collegiate School Alumni Associati
 // logging will still happen as normal).
 const SEND_CONFIRMATION_EMAIL = true;
 
+// Prefix used when generating each applicant's Registration ID, e.g. "BBCSAA-482913".
+const REG_ID_PREFIX = "BBCSAA-";
+
 // ---------------------------------------------------------------------
 
 /**
  * Handles POST requests from the front end.
  */
 function doPost(e) {
+  const lock = LockService.getScriptLock();
   try {
+    lock.waitLock(30000); // Avoid two near-simultaneous submissions colliding on the same sheet row.
+
     if (!e || !e.postData || !e.postData.contents) {
       return jsonResponse({ status: "error", message: "Empty request body." });
     }
@@ -82,6 +89,7 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     validatePayload(data);
 
+    const regId = generateRegistrationId_();
     const folders = getOrCreateUploadFolders_();
 
     // Decode each uploaded file to a Blob once, so the same Blob can be
@@ -96,13 +104,13 @@ function doPost(e) {
     const paymentUrl = saveBlobToDrive_(paymentBlob, folders.paymentProof, data.nameEn, "Payment");
 
     const urls = { nidUrl, profileUrl, paymentUrl };
-    appendRowToSheet_(data, urls);
+    appendRowToSheet_(data, urls, regId);
 
     let emailStatus = "skipped";
     if (SEND_CONFIRMATION_EMAIL && data.email) {
       try {
-        const pdfBlob = buildReceiptPdf_(data, urls, profileBlob);
-        sendConfirmationEmail_(data, pdfBlob);
+        const pdfBlob = buildReceiptPdf_(data, urls, profileBlob, regId);
+        sendConfirmationEmail_(data, pdfBlob, regId);
         emailStatus = "sent";
       } catch (mailErr) {
         // A failed email must never fail the whole registration — the
@@ -111,15 +119,32 @@ function doPost(e) {
       }
     }
 
+    // NOTE: "status" is the field name the front end (app.js) actually
+    // reads (`result.status === "success"`). If you ever swap in a
+    // different Code.gs, keep this field name in sync with app.js's
+    // check, or every submission will be reported as failed even
+    // when the row/files were saved correctly.
     return jsonResponse({
       status: "success",
+      registrationId: regId,
       message: "Registration saved.",
       urls: urls,
       email: emailStatus,
     });
   } catch (err) {
     return jsonResponse({ status: "error", message: err.message || String(err) });
+  } finally {
+    try { lock.releaseLock(); } catch (releaseErr) { /* lock was never acquired — nothing to release */ }
   }
+}
+
+/**
+ * Generates a short, human-shareable Registration ID for this
+ * submission (e.g. "BBCSAA-482913"), used in the Sheet row, the PDF
+ * receipt, and the confirmation email.
+ */
+function generateRegistrationId_() {
+  return REG_ID_PREFIX + Math.floor(100000 + Math.random() * 900000);
 }
 
 /**
@@ -226,11 +251,12 @@ function guessExtension_(mimeType, originalName) {
  * Appends a new row to the target sheet, creating the sheet and
  * header row on first use.
  */
-function appendRowToSheet_(data, urls) {
+function appendRowToSheet_(data, urls, regId) {
   const sheet = getOrCreateSheet_();
 
   sheet.appendRow([
     new Date(),
+    regId || "",
     data.nameBn || "",
     data.nameEn || "",
     data.fatherName || "",
@@ -281,7 +307,7 @@ function getOrCreateSheet_() {
  * standard Apps Script pattern for HTML/data → PDF, since Blob objects
  * cannot be converted to PDF directly.
  */
-function buildReceiptPdf_(data, urls, profileBlob) {
+function buildReceiptPdf_(data, urls, profileBlob, regId) {
   const doc = DocumentApp.create("TEMP_BBCS_Receipt_" + new Date().getTime());
   const body = doc.getBody();
   body.setMarginTop(40).setMarginBottom(40).setMarginLeft(50).setMarginRight(50);
@@ -293,7 +319,10 @@ function buildReceiptPdf_(data, urls, profileBlob) {
   const subtitle = body.appendParagraph("Membership Registration — Confirmation Copy");
   subtitle.setHeading(DocumentApp.ParagraphHeading.HEADING4);
   subtitle.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-  subtitle.setSpacingAfter(14);
+
+  const regLine = body.appendParagraph("Registration ID: " + (regId || "—"));
+  regLine.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  regLine.setBold(true).setSpacingAfter(14);
 
   if (profileBlob) {
     try {
@@ -361,7 +390,7 @@ function buildReceiptPdf_(data, urls, profileBlob) {
 
   const pdfBlob = DriveApp.getFileById(doc.getId())
     .getAs(MimeType.PDF)
-    .setName((data.nameEn || "Applicant").replace(/[^\w\-]+/g, "_") + "_BBCS-AA_Receipt.pdf");
+    .setName((regId || "Applicant") + "_" + (data.nameEn || "").replace(/[^\w\-]+/g, "_") + "_Receipt.pdf");
 
   // The temporary Google Doc is only a means to generate the PDF —
   // discard it so it doesn't clutter Drive.
@@ -373,15 +402,16 @@ function buildReceiptPdf_(data, urls, profileBlob) {
 /**
  * Emails the PDF receipt to the applicant's own address.
  */
-function sendConfirmationEmail_(data, pdfBlob) {
-  const subject = "BBCS-AA Membership Application Received — " + data.nameEn;
+function sendConfirmationEmail_(data, pdfBlob, regId) {
+  const subject = "BBCS-AA Membership Application Received — " + (regId || data.nameEn);
 
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; color:#241C13; max-width:560px;">
       <h2 style="color:#142E52; margin-bottom:4px;">Bagerhat Bohumukhi Collegiate School Alumni Association</h2>
       <p style="color:#5B5041; margin-top:0;">স্মৃতির আল্পনায়, প্রিয় আঙ্গিনায় — ঐতিহ্য · সম্প্রীতি · বন্ধন</p>
       <p>প্রিয় ${escapeHtml_(data.nameEn)},</p>
-      <p>আপনার সদস্যপদের আবেদন সফলভাবে গৃহীত হয়েছে। আপনার পূরণকৃত তথ্যের একটি PDF কপি এই ইমেইলের সাথে সংযুক্ত করা হলো, ভবিষ্যতে রেফারেন্সের জন্য এটি সংরক্ষণ করুন।</p>
+      <p>আপনার সদস্যপদের আবেদন সফলভাবে গৃহীত হয়েছে। আপনার রেজিস্ট্রেশন আইডি: <strong>${escapeHtml_(regId)}</strong></p>
+      <p>আপনার পূরণকৃত তথ্যের একটি PDF কপি এই ইমেইলের সাথে সংযুক্ত করা হলো, ভবিষ্যতে রেফারেন্সের জন্য এটি সংরক্ষণ করুন।</p>
       <p><strong>সদস্যপদের ধরন:</strong> ${escapeHtml_(data.membershipType)}<br>
       <strong>পেমেন্ট পদ্ধতি:</strong> ${escapeHtml_(data.paymentMethod)}</p>
       <p>আপনার প্রদত্ত তথ্য যাচাইয়ের পর কর্তৃপক্ষ প্রয়োজনে যোগাযোগ করবে।</p>
@@ -464,6 +494,12 @@ function escapeHtml_(value) {
  *      first time, since the sending address is new to that inbox).
  *
  * NOTES ON THE PDF RECEIPT & CONFIRMATION EMAIL
+ *    - Every submission gets a short Registration ID (e.g.
+ *      "BBCSAA-482913"), generated fresh per request and recorded in
+ *      the Sheet, the PDF receipt, and the confirmation email. It is
+ *      also returned to the front end and shown in the success popup.
+ *    - doPost() uses LockService so two people submitting at almost
+ *      the same instant can't collide while writing to the Sheet.
  *    - The email is sent by MailApp.sendEmail from the Google account
  *      that owns this deployment (the one you authorized in step 3),
  *      shown to recipients as "Bagerhat Bohumukhi Collegiate School
@@ -483,6 +519,20 @@ function escapeHtml_(value) {
  *      outcome in the browser console.
  *    - To turn the email off entirely (e.g. during testing), set
  *      SEND_CONFIRMATION_EMAIL to false above.
+ *
+ * IMPORTANT — KEEPING Code.gs AND app.js IN SYNC
+ *    - app.js checks `result.status === "success"` to decide whether
+ *      a submission worked. This Code.gs always replies with a
+ *      "status" field for exactly that reason. If you ever edit this
+ *      file (or paste in a different version) and rename that field —
+ *      e.g. to "result" — every submission will show the front end's
+ *      "জমা দিতে সমস্যা হয়েছে" error message even though the row and
+ *      files were actually saved correctly. If that error ever shows
+ *      up unexpectedly, this field-name mismatch is the first thing
+ *      to check: open the deployed Web App URL's logs (Executions,
+ *      in the Apps Script editor) or temporarily log
+ *      `console.log(JSON.stringify(payload))` in doPost to confirm
+ *      what's actually being returned.
  *
  * NOTES ON CORS
  *    - Apps Script Web Apps cannot set custom CORS headers or answer
