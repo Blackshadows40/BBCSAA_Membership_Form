@@ -1,5 +1,5 @@
 // Replace this string with the Web App URL generated when you deploy Code.gs
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyV6NrtXW6cpl88etibvaHGO86UR0xP3YJ2G6MEtcbtxjO5FfvkO9vCac9SIfAuXxWc/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzhA31oGdTucSnB-XeeHDk510wqX8_Ku9jPGXYOXx0phE5nUUnsjpxxBkzE-9rqOAUXCg/exec";
 
 document.getElementById("membershipForm").addEventListener("submit", async function(e) {
   e.preventDefault();
